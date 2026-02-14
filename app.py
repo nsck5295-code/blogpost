@@ -18,42 +18,48 @@ if not st.session_state.get("authenticated"):
 
 # ── 메인 ──
 st.title("✏️ 네이버 블로그 재작성")
-st.caption("네이버 블로그 URL을 입력하면 비슷한 구조와 톤으로 글을 재작성해줍니다.")
+st.caption("네이버 블로그 URL을 한 줄에 하나씩 입력하세요.")
 
-url = st.text_input("네이버 블로그 URL", placeholder="https://blog.naver.com/blogid/123456789")
+urls_input = st.text_area(
+    "네이버 블로그 URL 목록",
+    placeholder="https://blog.naver.com/blogid/111111111\nhttps://blog.naver.com/blogid/222222222",
+    height=150,
+)
 
 if st.button("재작성하기", type="primary", use_container_width=True):
-    if not url:
+    urls = [u.strip() for u in urls_input.strip().splitlines() if u.strip()]
+    if not urls:
         st.error("블로그 URL을 입력해주세요.")
         st.stop()
 
     api_key = st.secrets["OPENAI_API_KEY"]
+    progress = st.progress(0, text="시작하는 중...")
 
-    # 1) 크롤링
-    with st.spinner("블로그 글을 가져오는 중..."):
-        try:
-            data = scrape_blog(url)
-        except Exception as e:
-            st.error(f"크롤링 실패: {e}")
-            st.stop()
+    for i, url in enumerate(urls):
+        st.markdown(f"---\n### {i + 1}/{len(urls)}")
+        progress.progress((i) / len(urls), text=f"{i + 1}/{len(urls)} 처리 중...")
 
-    # 원문 표시
-    with st.expander("📄 원문 보기", expanded=False):
-        st.subheader(data["title"])
-        st.text(data["content"])
+        # 1) 크롤링
+        with st.spinner(f"크롤링 중... ({url})"):
+            try:
+                data = scrape_blog(url)
+            except Exception as e:
+                st.error(f"크롤링 실패: {url}\n{e}")
+                continue
 
-    # 2) 재작성
-    with st.spinner("AI가 재작성하는 중..."):
-        try:
-            result = rewrite(data["title"], data["content"], api_key)
-        except Exception as e:
-            st.error(f"재작성 실패: {e}")
-            st.stop()
+        with st.expander(f"📄 원문: {data['title']}", expanded=False):
+            st.text(data["content"])
 
-    # 결과 표시
-    st.subheader("재작성 결과")
-    st.text_area("결과", value=result, height=500, label_visibility="collapsed")
+        # 2) 재작성
+        with st.spinner("AI가 재작성하는 중..."):
+            try:
+                result = rewrite(data["title"], data["content"], api_key)
+            except Exception as e:
+                st.error(f"재작성 실패: {e}")
+                continue
 
-    # 복사 버튼
-    st.code(result, language=None)
-    st.caption("↑ 위 코드 블록 오른쪽 상단의 복사 버튼을 눌러 복사하세요.")
+        st.code(result, language=None)
+        st.caption("↑ 오른쪽 상단 복사 버튼으로 복사하세요.")
+
+    progress.progress(1.0, text="완료!")
+    st.balloons()
