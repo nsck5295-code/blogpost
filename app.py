@@ -1,8 +1,33 @@
 import difflib
+import re
 
 import streamlit as st
 from scraper import scrape
 from rewriter import rewrite
+
+
+def parse_rewrite_result(text: str) -> dict:
+    """GPT 결과를 [제목], [본문], [해시태그] 섹션으로 파싱한다."""
+    title = ""
+    body = ""
+    hashtags = ""
+
+    # 섹션 분리
+    sections = re.split(r"\[제목\]|\[본문\]|\[해시태그\]", text)
+    headers = re.findall(r"\[제목\]|\[본문\]|\[해시태그\]", text)
+
+    mapping = {}
+    for i, header in enumerate(headers):
+        mapping[header] = sections[i + 1].strip() if i + 1 < len(sections) else ""
+
+    title = mapping.get("[제목]", "")
+    body = mapping.get("[본문]", "")
+    hashtags = mapping.get("[해시태그]", "")
+
+    # 파싱 실패 시 전체를 본문으로
+    if not body:
+        body = text
+    return {"title": title, "body": body, "hashtags": hashtags}
 
 st.set_page_config(page_title="블로그 재작성", page_icon="✏️", layout="wide")
 
@@ -55,10 +80,12 @@ if st.button("재작성하기", type="primary", use_container_width=True):
             results.append({"url": url, "error": f"재작성 실패: {e}"})
             continue
 
-        # 3) 통계 계산
+        # 3) 파싱 & 통계
+        parsed = parse_rewrite_result(rewritten)
         original_text = data["content"]
         image_count = original_text.count("[이미지")
-        similarity = difflib.SequenceMatcher(None, original_text, rewritten).ratio()
+        body = parsed["body"]
+        similarity = difflib.SequenceMatcher(None, original_text, body).ratio()
 
         results.append({
             "url": url,
@@ -66,8 +93,10 @@ if st.button("재작성하기", type="primary", use_container_width=True):
             "original": original_text,
             "original_len": len(original_text),
             "image_count": image_count,
-            "rewritten": rewritten,
-            "rewritten_len": len(rewritten),
+            "new_title": parsed["title"],
+            "body": body,
+            "hashtags": parsed["hashtags"],
+            "rewritten_len": len(body),
             "similarity": similarity,
         })
 
@@ -93,7 +122,14 @@ if st.button("재작성하기", type="primary", use_container_width=True):
         with st.expander(f"**{i}. {r['title']}**", expanded=False):
             tab_rewrite, tab_original = st.tabs(["재작성 결과", "원문"])
             with tab_rewrite:
-                st.code(r["rewritten"], language=None)
+                if r["new_title"]:
+                    st.markdown(f"**추천 제목**")
+                    st.code(r["new_title"], language=None)
+                st.markdown(f"**본문**")
+                st.code(r["body"], language=None)
+                if r["hashtags"]:
+                    st.markdown(f"**해시태그**")
+                    st.code(r["hashtags"], language=None)
             with tab_original:
                 st.text(r["original"])
 
