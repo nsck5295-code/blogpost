@@ -164,4 +164,31 @@ def _extract_se_content(container) -> str:
             if link_text:
                 blocks.append(f"[링크: {link_text}]")
 
-    return "\n\n".join(blocks)
+    return _clean_content("\n\n".join(blocks))
+
+
+def _clean_content(text: str) -> str:
+    """본문에서 작성자 정보, 해시태그, 하단 관련글 링크를 제거한다."""
+    lines = text.split("\n")
+    cleaned: list[str] = []
+    for line in lines:
+        stripped = line.strip()
+        # 해시태그 줄 (#블랙핑크, #aespa 등)
+        if stripped.startswith("#") and not stripped.startswith("##"):
+            continue
+        # 하단 관련글 링크 블록
+        if stripped.startswith("[링크:"):
+            continue
+        # 글/사진 저작권 표기 (글/사진 ©맛토, 사진 출처: 등)
+        if re.match(r"^(글|사진|글/사진|photo|credit)\s*[©ⓒ:]", stripped, re.IGNORECASE):
+            continue
+        # SNS 핸들만 있는 줄 (@username, instagram.com/... 등)
+        if re.match(r"^@\w+$", stripped):
+            continue
+        if re.match(r"^(instagram|insta|youtube|twitter|tiktok)\.com/", stripped, re.IGNORECASE):
+            continue
+        # 짧은 영문/숫자만 있는 줄 (SNS 아이디 등: luo_603)
+        if re.match(r"^[a-zA-Z0-9_.]{2,20}$", stripped) and not stripped.isdigit():
+            continue
+        cleaned.append(line)
+    return "\n".join(cleaned)
