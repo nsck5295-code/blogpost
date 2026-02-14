@@ -40,7 +40,20 @@ def parse_blog_url(url: str) -> str:
     )
 
 
-def scrape_blog(url: str) -> dict:
+def _is_naver_blog(url: str) -> bool:
+    host = (urlparse(url.strip()).hostname or "").lower()
+    return "blog.naver.com" in host
+
+
+def scrape(url: str) -> dict:
+    """URL에 따라 네이버 블로그 또는 일반 웹페이지를 크롤링한다."""
+    url = url.strip()
+    if _is_naver_blog(url):
+        return _scrape_naver_blog(url)
+    return _scrape_generic(url)
+
+
+def _scrape_naver_blog(url: str) -> dict:
     """네이버 블로그 모바일 페이지에서 제목과 본문을 추출한다."""
     mobile_url = parse_blog_url(url)
     resp = requests.get(mobile_url, headers=HEADERS, timeout=15)
@@ -73,6 +86,46 @@ def scrape_blog(url: str) -> dict:
         raise ValueError("본문을 추출하지 못했습니다. 비공개 글이거나 지원하지 않는 형식일 수 있습니다.")
 
     return {"title": title, "content": content, "url": mobile_url}
+
+
+def _scrape_generic(url: str) -> dict:
+    """일반 웹페이지에서 제목과 본문을 추출한다."""
+    resp = requests.get(url, headers=HEADERS, timeout=15)
+    resp.raise_for_status()
+
+    soup = BeautifulSoup(resp.text, "html.parser")
+
+    # 제목
+    og_title = soup.find("meta", property="og:title")
+    if og_title and og_title.get("content"):
+        title = og_title["content"]
+    elif soup.title:
+        title = soup.title.get_text(strip=True)
+    else:
+        title = "제목 없음"
+
+    # 본문 – article 태그 우선, 없으면 body
+    article = soup.select_one("article") or soup.select_one("[role='main']")
+    if not article:
+        article = soup.body
+
+    if not article:
+        raise ValueError("본문을 추출하지 못했습니다.")
+
+    # 불필요한 태그 제거
+    for tag in article.select("script, style, nav, header, footer, aside, iframe"):
+        tag.decompose()
+
+    content = article.get_text("\n", strip=True)
+
+    if not content.strip():
+        raise ValueError("본문을 추출하지 못했습니다.")
+
+    return {"title": title, "content": content, "url": url}
+
+
+# 하위 호환
+scrape_blog = scrape
 
 
 def _extract_se_content(container) -> str:
