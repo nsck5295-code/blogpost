@@ -9,7 +9,7 @@ if not st.session_state.get("authenticated"):
     st.title("🔒 로그인")
     pw = st.text_input("비밀번호를 입력하세요", type="password")
     if st.button("확인", type="primary"):
-        if pw == st.secrets["app"]["password"]:
+        if pw == st.secrets["PASSWORD"]:
             st.session_state["authenticated"] = True
             st.rerun()
         else:
@@ -27,7 +27,7 @@ if st.button("재작성하기", type="primary", use_container_width=True):
         st.error("블로그 URL을 입력해주세요.")
         st.stop()
 
-    api_key = st.secrets["openai"]["api_key"]
+    api_key = st.secrets["OPENAI_API_KEY"]
 
     # 1) 크롤링
     with st.spinner("블로그 글을 가져오는 중..."):
