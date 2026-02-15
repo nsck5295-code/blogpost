@@ -156,11 +156,17 @@ if st.button("재작성하기", type="primary", use_container_width=True):
                     st.markdown(f"**추천 제목**")
                     st.code(r["new_title"], language=None)
                 st.markdown(f"**본문**")
-                # 이미지 링크를 클릭 가능하게 변환
+                # ## 소제목을 볼드로, 이미지 링크를 클릭 가능하게 변환
+                display_body = re.sub(
+                    r"^## (.+)$",
+                    r"**\1**",
+                    r["body"],
+                    flags=re.MULTILINE,
+                )
                 display_body = re.sub(
                     r"\(유사 이미지 찾기: (https://[^\)]+)\)",
                     r"([유사 이미지 찾기 →](\1))",
-                    r["body"],
+                    display_body,
                 )
                 display_body = re.sub(
                     r"\(이미지 검색: (https://[^\)]+)\)",
