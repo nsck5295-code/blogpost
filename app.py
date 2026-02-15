@@ -1,4 +1,6 @@
 import difflib
+import hashlib
+import json
 import re
 from urllib.parse import quote_plus
 
@@ -100,6 +102,55 @@ if not st.session_state.get("authenticated"):
 
 # ── 메인 ──
 st.title("✏️ 네이버 블로그 재작성 for 세희")
+
+# ── 사이드바: 히스토리 ──
+with st.sidebar:
+    st.markdown("### 📋 히스토리")
+    st.components.v1.html("""
+<div id="hist" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:13px;"></div>
+<script>
+(function(){
+    var KEY='blog_rewriter_history',c=document.getElementById('hist'),h=[];
+    function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+    try{h=JSON.parse(localStorage.getItem(KEY)||'[]');}catch(e){}
+    if(!h.length){c.innerHTML='<p style="color:#999;">아직 히스토리가 없습니다.</p>';return;}
+    var html='';
+    h.slice(0,30).forEach(function(entry,idx){
+        var d=new Date(entry.timestamp);
+        var ds=d.getFullYear()+'.'+String(d.getMonth()+1).padStart(2,'0')+'.'+String(d.getDate()).padStart(2,'0')+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+        html+='<div style="border-bottom:1px solid #eee;padding:8px 0;">';
+        html+='<div style="display:flex;justify-content:space-between;align-items:center;">';
+        html+='<span style="color:#888;font-size:12px;">'+esc(ds)+' ('+entry.urls.length+'\\uAC1C)</span>';
+        html+='<button data-idx="'+idx+'" style="font-size:11px;padding:2px 8px;border:1px solid #03C75A;color:#03C75A;background:#fff;border-radius:4px;cursor:pointer;">\\uBCF5\\uC0AC</button>';
+        html+='</div>';
+        entry.urls.forEach(function(url){
+            var s=url.length>35?url.substring(0,35)+'...':url;
+            html+='<div style="font-size:11px;color:#555;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+esc(url)+'">'+esc(s)+'</div>';
+        });
+        html+='</div>';
+    });
+    html+='<div style="text-align:center;margin-top:12px;"><button id="clearBtn" style="font-size:12px;color:#999;background:none;border:1px solid #ddd;border-radius:4px;padding:4px 12px;cursor:pointer;">\\uC804\\uCCB4 \\uC0AD\\uC81C</button></div>';
+    c.innerHTML=html;
+    c.addEventListener('click',function(e){
+        var btn=e.target;
+        if(btn.dataset && btn.dataset.idx!==undefined){
+            var entry=h[parseInt(btn.dataset.idx)];
+            if(entry){
+                navigator.clipboard.writeText(entry.urls.join('\\n')).then(function(){
+                    btn.textContent='\\u2705 \\uBCF5\\uC0AC\\uB428';
+                    btn.style.background='#e6ffe6';
+                    setTimeout(function(){btn.textContent='\\uBCF5\\uC0AC';btn.style.background='#fff';},2000);
+                });
+            }
+        }
+        if(btn.id==='clearBtn'){
+            localStorage.removeItem(KEY);
+            c.innerHTML='<p style="color:#999;">\\uD788\\uC2A4\\uD1A0\\uB9AC\\uAC00 \\uC0AD\\uC81C\\uB418\\uC5C8\\uC2B5\\uB2C8\\uB2E4.</p>';
+        }
+    });
+})();
+</script>
+    """, height=300, scrolling=True)
 
 # URL 입력 칸 관리
 if "url_count" not in st.session_state:
@@ -247,7 +298,6 @@ if st.button("재작성하기", type="primary", use_container_width=True):
                 if r["hashtags"]:
                     full_copy += "\n\n" + r["hashtags"]
 
-                import json
                 escaped = json.dumps(full_copy)
                 st.components.v1.html(f"""
                 <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
@@ -271,7 +321,6 @@ if st.button("재작성하기", type="primary", use_container_width=True):
                 </script>
                 """, height=40)
 
-                import hashlib
                 content_hash = hashlib.md5(full_copy.encode()).hexdigest()[:8]
                 st.text_area(
                     "copy",
@@ -288,3 +337,19 @@ if st.button("재작성하기", type="primary", use_container_width=True):
                 st.text(r["original"])
 
     st.balloons()
+
+    # 히스토리에 저장
+    urls_json = json.dumps(urls, ensure_ascii=False).replace("</", "<\\/")
+    st.components.v1.html(f"""
+    <script>
+    (function(){{
+        var KEY='blog_rewriter_history',h=[];
+        try{{h=JSON.parse(localStorage.getItem(KEY)||'[]');}}catch(e){{}}
+        var nu={urls_json};
+        if(h.length>0&&JSON.stringify(h[0].urls)===JSON.stringify(nu))return;
+        h.unshift({{urls:nu,timestamp:new Date().toISOString()}});
+        if(h.length>30)h=h.slice(0,30);
+        localStorage.setItem(KEY,JSON.stringify(h));
+    }})();
+    </script>
+    """, height=0)
