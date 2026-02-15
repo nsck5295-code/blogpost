@@ -71,16 +71,36 @@ if not st.session_state.get("authenticated"):
 
 # ── 메인 ──
 st.title("✏️ 네이버 블로그 재작성 for 세희")
-st.caption("블로그 URL을 한 줄에 하나씩 입력하세요.")
 
-urls_input = st.text_area(
-    "블로그 URL 목록",
-    placeholder="https://blog.naver.com/blogid/111111111\nhttps://blog.naver.com/blogid/222222222",
-    height=150,
-)
+# URL 입력 칸 관리
+if "url_count" not in st.session_state:
+    st.session_state["url_count"] = 3
+
+url_count = st.session_state["url_count"]
+valid_urls = []
+
+st.markdown(f"**URL 목록 ({'{'}0{'}'})** 👇".replace("{0}", "0"))
+url_placeholder = st.empty()
+
+with url_placeholder.container():
+    for idx in range(url_count):
+        val = st.text_input(
+            f"URL {idx + 1}",
+            placeholder="https://blog.naver.com/blogid/123456789",
+            key=f"url_input_{idx}",
+            label_visibility="collapsed",
+        )
+        if val and val.strip():
+            valid_urls.append(val.strip())
+
+    col_add, col_count = st.columns([1, 3])
+    if col_add.button("➕ URL 추가", key="add_url"):
+        st.session_state["url_count"] += 1
+        st.rerun()
+    col_count.markdown(f"입력된 URL: **{len(valid_urls)}**개")
 
 if st.button("재작성하기", type="primary", use_container_width=True):
-    urls = [u.strip() for u in urls_input.strip().splitlines() if u.strip()]
+    urls = valid_urls
     if not urls:
         st.error("블로그 URL을 입력해주세요.")
         st.stop()
