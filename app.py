@@ -112,10 +112,14 @@ if st.button("재작성하기", type="primary", use_container_width=True):
         image_count = original_text.count("[이미지")
         body = parsed["body"]
 
+        # 순수 텍스트 길이 계산 (이미지 태그, 키워드 제거)
+        pure_body = re.sub(r"\[이미지:[^\]]*\]|\[이미지\]", "", body).strip()
+        rewritten_len = len(pure_body)
+
         # 이미지 검색 링크 생성 (원본 이미지 URL로 역이미지 검색)
         body = attach_image_links(body, data.get("image_urls", []))
 
-        similarity = difflib.SequenceMatcher(None, original_text, body).ratio()
+        similarity = difflib.SequenceMatcher(None, original_text, pure_body).ratio()
 
         results.append({
             "url": url,
@@ -126,7 +130,7 @@ if st.button("재작성하기", type="primary", use_container_width=True):
             "new_title": parsed["title"],
             "body": body,
             "hashtags": parsed["hashtags"],
-            "rewritten_len": len(body),
+            "rewritten_len": rewritten_len,
             "similarity": similarity,
         })
 
