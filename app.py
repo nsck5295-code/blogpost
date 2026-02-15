@@ -222,12 +222,14 @@ if st.button("재작성하기", type="primary", use_container_width=True):
                 </script>
                 """, height=40)
 
+                import hashlib
+                content_hash = hashlib.md5(full_copy.encode()).hexdigest()[:8]
                 st.text_area(
                     "copy",
                     value=full_copy,
                     height=300,
                     label_visibility="collapsed",
-                    key=f"copy_{i}",
+                    key=f"copy_{i}_{content_hash}",
                 )
 
                 if r["hashtags"]:
