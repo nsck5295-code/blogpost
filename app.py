@@ -198,20 +198,29 @@ if st.button("재작성하기", type="primary", use_container_width=True):
                 if r["hashtags"]:
                     full_copy += "\n\n" + r["hashtags"]
 
-                col_label, col_btn = st.columns([3, 1])
-                col_label.markdown("**복사용 텍스트**")
-                copy_key = f"copy_btn_{i}"
-                if col_btn.button("📋 복사하기", key=copy_key):
-                    st.session_state[f"copied_{i}"] = True
-                if st.session_state.get(f"copied_{i}"):
-                    st.components.v1.html(
-                        f"""<script>
-                        navigator.clipboard.writeText({repr(full_copy)});
-                        </script>
-                        <p style="color:green;font-size:14px;">✅ 복사되었습니다!</p>""",
-                        height=30,
-                    )
-                    st.session_state[f"copied_{i}"] = False
+                import json
+                escaped = json.dumps(full_copy)
+                st.components.v1.html(f"""
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+                    <span style="font-weight:700;font-size:14px;">복사용 텍스트</span>
+                    <button onclick="copyText(this)" style="
+                        padding:4px 12px;font-size:13px;cursor:pointer;
+                        border:1px solid #ccc;border-radius:6px;background:#fff;
+                    ">📋 복사하기</button>
+                </div>
+                <script>
+                function copyText(btn) {{
+                    navigator.clipboard.writeText({escaped}).then(function() {{
+                        btn.textContent = '✅ 복사 완료!';
+                        btn.style.background = '#e6ffe6';
+                        setTimeout(function() {{
+                            btn.textContent = '📋 복사하기';
+                            btn.style.background = '#fff';
+                        }}, 2000);
+                    }});
+                }}
+                </script>
+                """, height=40)
 
                 st.text_area(
                     "copy",
