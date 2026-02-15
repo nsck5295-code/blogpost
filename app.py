@@ -55,7 +55,7 @@ def parse_rewrite_result(text: str) -> dict:
         body = text
     return {"title": title, "body": body, "hashtags": hashtags}
 
-st.set_page_config(page_title="블로그 재작성", page_icon="✏️", layout="wide")
+st.set_page_config(page_title="블로그 재작성 for 세희", page_icon="✏️", layout="wide")
 
 # ── 비밀번호 잠금 ──
 if not st.session_state.get("authenticated"):
@@ -70,7 +70,7 @@ if not st.session_state.get("authenticated"):
     st.stop()
 
 # ── 메인 ──
-st.title("✏️ 네이버 블로그 재작성")
+st.title("✏️ 네이버 블로그 재작성 for 세희")
 st.caption("블로그 URL을 한 줄에 하나씩 입력하세요.")
 
 urls_input = st.text_area(
