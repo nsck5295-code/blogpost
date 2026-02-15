@@ -1,20 +1,18 @@
 import difflib
 import re
+from urllib.parse import quote_plus
 
 import streamlit as st
 from scraper import scrape
 from rewriter import rewrite
-from image_search import search_image
 
 
-def attach_images(body: str, pexels_key: str) -> str:
-    """본문의 [이미지: keyword]를 [이미지] (추천 이미지: URL)로 변환한다."""
+def attach_image_links(body: str) -> str:
+    """본문의 [이미지: keyword]를 Google 이미지 검색 링크로 변환한다."""
     def replace_match(m):
         keyword = m.group(1).strip()
-        url = search_image(keyword, pexels_key)
-        if url:
-            return f"[이미지] (추천 이미지: {url})"
-        return "[이미지]"
+        search_url = f"https://www.google.com/search?q={quote_plus(keyword)}&tbm=isch"
+        return f"[이미지] (추천 이미지 검색: {search_url})"
 
     return re.sub(r"\[이미지:\s*(.+?)\]", replace_match, body)
 
@@ -99,10 +97,8 @@ if st.button("재작성하기", type="primary", use_container_width=True):
         image_count = original_text.count("[이미지")
         body = parsed["body"]
 
-        # Pexels 이미지 검색
-        pexels_key = st.secrets.get("PEXELS_API_KEY", "")
-        if pexels_key:
-            body = attach_images(body, pexels_key)
+        # 이미지 검색 링크 생성
+        body = attach_image_links(body)
 
         similarity = difflib.SequenceMatcher(None, original_text, body).ratio()
 
@@ -145,7 +141,15 @@ if st.button("재작성하기", type="primary", use_container_width=True):
                     st.markdown(f"**추천 제목**")
                     st.code(r["new_title"], language=None)
                 st.markdown(f"**본문**")
+                # 이미지 검색 링크를 클릭 가능하게 변환
+                display_body = re.sub(
+                    r"\(추천 이미지 검색: (https://[^\)]+)\)",
+                    r"(추천 이미지 검색: [\1](\1))",
+                    r["body"],
+                )
+                st.markdown(display_body)
                 st.code(r["body"], language=None)
+                st.caption("↑ 복사용 텍스트")
                 if r["hashtags"]:
                     st.markdown(f"**해시태그**")
                     st.code(r["hashtags"], language=None)
