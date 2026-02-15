@@ -4,6 +4,19 @@ import re
 import streamlit as st
 from scraper import scrape
 from rewriter import rewrite
+from image_search import search_image
+
+
+def attach_images(body: str, pexels_key: str) -> str:
+    """본문의 [이미지: keyword]를 [이미지] (추천 이미지: URL)로 변환한다."""
+    def replace_match(m):
+        keyword = m.group(1).strip()
+        url = search_image(keyword, pexels_key)
+        if url:
+            return f"[이미지] (추천 이미지: {url})"
+        return "[이미지]"
+
+    return re.sub(r"\[이미지:\s*(.+?)\]", replace_match, body)
 
 
 def parse_rewrite_result(text: str) -> dict:
@@ -80,11 +93,17 @@ if st.button("재작성하기", type="primary", use_container_width=True):
             results.append({"url": url, "error": f"재작성 실패: {e}"})
             continue
 
-        # 3) 파싱 & 통계
+        # 3) 파싱 & 이미지 검색 & 통계
         parsed = parse_rewrite_result(rewritten)
         original_text = data["content"]
         image_count = original_text.count("[이미지")
         body = parsed["body"]
+
+        # Pexels 이미지 검색
+        pexels_key = st.secrets.get("PEXELS_API_KEY", "")
+        if pexels_key:
+            body = attach_images(body, pexels_key)
+
         similarity = difflib.SequenceMatcher(None, original_text, body).ratio()
 
         results.append({
