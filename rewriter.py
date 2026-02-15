@@ -59,16 +59,17 @@ def rewrite(title: str, content: str, api_key: str) -> str:
     client = OpenAI(api_key=api_key)
 
     image_hint = _analyze_image_pattern(content)
-    user_message = f"# 원문 제목\n{title}\n\n# 원문 본문\n{content}{image_hint}"
+    system = SYSTEM_PROMPT + image_hint
+    user_message = f"# 원문 제목\n{title}\n\n# 원문 본문\n{content}"
 
     response = client.chat.completions.create(
         model="gpt-4o",
         messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "system", "content": system},
             {"role": "user", "content": user_message},
         ],
         temperature=0.7,
-        max_tokens=4096,
+        max_tokens=8192,
     )
 
     return response.choices[0].message.content
