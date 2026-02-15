@@ -72,9 +72,10 @@ def _scrape_naver_blog(url: str) -> dict:
         title = og["content"] if og else "제목 없음"
 
     # 본문 추출 – SmartEditor 구조 (se-main-container)
+    image_urls = []
     container = soup.select_one("div.se-main-container")
     if container:
-        content = _extract_se_content(container)
+        content, image_urls = _extract_se_content(container)
     else:
         # 구형 에디터 fallback
         container = soup.select_one("div#postViewArea") or soup.select_one(
@@ -85,7 +86,7 @@ def _scrape_naver_blog(url: str) -> dict:
     if not content.strip():
         raise ValueError("본문을 추출하지 못했습니다. 비공개 글이거나 지원하지 않는 형식일 수 있습니다.")
 
-    return {"title": title, "content": content, "url": mobile_url}
+    return {"title": title, "content": content, "image_urls": image_urls, "url": mobile_url}
 
 
 def _scrape_generic(url: str) -> dict:
@@ -121,16 +122,25 @@ def _scrape_generic(url: str) -> dict:
     if not content.strip():
         raise ValueError("본문을 추출하지 못했습니다.")
 
-    return {"title": title, "content": content, "url": url}
+    # 이미지 URL 추출
+    image_urls = []
+    for img in article.select("img"):
+        src = img.get("data-lazy-src") or img.get("src") or ""
+        if src and not src.startswith("data:"):
+            image_urls.append(src)
+
+    return {"title": title, "content": content, "image_urls": image_urls, "url": url}
 
 
 # 하위 호환
 scrape_blog = scrape
 
 
-def _extract_se_content(container) -> str:
-    """SmartEditor3 본문에서 텍스트 블록을 순서대로 추출한다."""
+def _extract_se_content(container) -> tuple[str, list[str]]:
+    """SmartEditor3 본문에서 텍스트 블록과 이미지 URL을 순서대로 추출한다."""
     blocks: list[str] = []
+    image_urls: list[str] = []
+
     for module in container.select("div.se-module"):
         classes = module.get("class", [])
 
@@ -138,7 +148,6 @@ def _extract_se_content(container) -> str:
         if "se-module-text" in classes:
             text = module.get_text("\n", strip=True)
             if text:
-                # 볼드/소제목 구분을 위해 strong 태그 확인
                 if module.select("strong, b"):
                     blocks.append(f"## {text}")
                 else:
@@ -148,15 +157,25 @@ def _extract_se_content(container) -> str:
         elif "se-module-horizontalLine" in classes:
             blocks.append("---")
 
-        # 이미지 캡션
+        # 이미지 — URL도 함께 추출
         elif "se-module-image" in classes:
+            img_tag = module.select_one("img")
+            img_url = ""
+            if img_tag:
+                img_url = img_tag.get("data-lazy-src") or img_tag.get("src") or ""
+
             caption = module.select_one("div.se-caption")
             if caption:
                 cap_text = caption.get_text(strip=True)
                 if cap_text:
                     blocks.append(f"[이미지: {cap_text}]")
+                else:
+                    blocks.append("[이미지]")
             else:
                 blocks.append("[이미지]")
+
+            if img_url:
+                image_urls.append(img_url)
 
         # 링크/OG카드
         elif "se-module-oglink" in classes:
@@ -164,7 +183,7 @@ def _extract_se_content(container) -> str:
             if link_text:
                 blocks.append(f"[링크: {link_text}]")
 
-    return _clean_content("\n\n".join(blocks))
+    return _clean_content("\n\n".join(blocks)), image_urls
 
 
 def _clean_content(text: str) -> str:

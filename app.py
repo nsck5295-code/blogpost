@@ -7,14 +7,29 @@ from scraper import scrape
 from rewriter import rewrite
 
 
-def attach_image_links(body: str) -> str:
-    """본문의 [이미지: keyword]를 Google 이미지 검색 링크로 변환한다."""
-    def replace_match(m):
-        keyword = m.group(1).strip()
-        search_url = f"https://www.google.com/search?q={quote_plus(keyword)}&tbm=isch"
-        return f"[이미지] (추천 이미지 검색: {search_url})"
+def attach_image_links(body: str, image_urls: list[str]) -> str:
+    """본문의 [이미지: keyword] 또는 [이미지]를 원본 역이미지 검색 링크 + 키워드 검색 링크로 변환한다."""
+    url_iter = iter(image_urls)
 
-    return re.sub(r"\[이미지:\s*(.+?)\]", replace_match, body)
+    def replace_match(m):
+        full = m.group(0)
+        # 키워드가 있으면 추출
+        kw_match = re.match(r"\[이미지:\s*(.+?)\]", full)
+        keyword = kw_match.group(1).strip() if kw_match else ""
+
+        # 원본 이미지 URL이 있으면 Google Lens 역이미지 검색
+        orig_url = next(url_iter, None)
+        if orig_url:
+            lens_url = f"https://lens.google.com/uploadbyurl?url={quote_plus(orig_url)}"
+            result = f"[이미지] (유사 이미지 찾기: {lens_url})"
+        elif keyword:
+            search_url = f"https://www.google.com/search?q={quote_plus(keyword)}&tbm=isch"
+            result = f"[이미지] (이미지 검색: {search_url})"
+        else:
+            result = "[이미지]"
+        return result
+
+    return re.sub(r"\[이미지:[^\]]*\]|\[이미지\]", replace_match, body)
 
 
 def parse_rewrite_result(text: str) -> dict:
@@ -97,8 +112,8 @@ if st.button("재작성하기", type="primary", use_container_width=True):
         image_count = original_text.count("[이미지")
         body = parsed["body"]
 
-        # 이미지 검색 링크 생성
-        body = attach_image_links(body)
+        # 이미지 검색 링크 생성 (원본 이미지 URL로 역이미지 검색)
+        body = attach_image_links(body, data.get("image_urls", []))
 
         similarity = difflib.SequenceMatcher(None, original_text, body).ratio()
 
@@ -141,11 +156,16 @@ if st.button("재작성하기", type="primary", use_container_width=True):
                     st.markdown(f"**추천 제목**")
                     st.code(r["new_title"], language=None)
                 st.markdown(f"**본문**")
-                # 이미지 검색 링크를 클릭 가능하게 변환
+                # 이미지 링크를 클릭 가능하게 변환
                 display_body = re.sub(
-                    r"\(추천 이미지 검색: (https://[^\)]+)\)",
-                    r"(추천 이미지 검색: [\1](\1))",
+                    r"\(유사 이미지 찾기: (https://[^\)]+)\)",
+                    r"([유사 이미지 찾기 →](\1))",
                     r["body"],
+                )
+                display_body = re.sub(
+                    r"\(이미지 검색: (https://[^\)]+)\)",
+                    r"([이미지 검색 →](\1))",
+                    display_body,
                 )
                 st.markdown(display_body)
                 st.code(r["body"], language=None)
