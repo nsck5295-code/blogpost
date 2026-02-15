@@ -28,11 +28,38 @@ SYSTEM_PROMPT = """\
 """
 
 
+def _analyze_image_pattern(content: str) -> str:
+    """원문의 이미지 배치 패턴을 분석하여 설명 문자열로 반환한다."""
+    lines = content.split("\n")
+    groups = []
+    count = 0
+    for line in lines:
+        stripped = line.strip()
+        # 이미지 줄이거나 빈 줄이면 현재 묶음 계속
+        if "[이미지" in stripped:
+            count += 1
+        elif stripped == "" and count > 0:
+            continue  # 이미지 사이 빈줄은 무시
+        else:
+            if count > 0:
+                groups.append(count)
+                count = 0
+    if count > 0:
+        groups.append(count)
+
+    total = sum(groups)
+    if not groups:
+        return ""
+    pattern = ", ".join(str(g) for g in groups)
+    return f"\n\n중요: 원문에는 총 {total}개의 [이미지]가 있고, 묶음 패턴은 [{pattern}]입니다 (예: 4는 연속 4개). 재작성에서도 이 묶음 패턴과 총 개수를 정확히 따르세요."
+
+
 def rewrite(title: str, content: str, api_key: str) -> str:
     """원문을 GPT-4o로 재작성한다."""
     client = OpenAI(api_key=api_key)
 
-    user_message = f"# 원문 제목\n{title}\n\n# 원문 본문\n{content}"
+    image_hint = _analyze_image_pattern(content)
+    user_message = f"# 원문 제목\n{title}\n\n# 원문 본문\n{content}{image_hint}"
 
     response = client.chat.completions.create(
         model="gpt-4o",

@@ -57,6 +57,35 @@ def parse_rewrite_result(text: str) -> dict:
 
 st.set_page_config(page_title="블로그 재작성 for 세희", page_icon="✏️", layout="wide")
 
+# ── 모바일 반응형 CSS ──
+st.markdown("""
+<style>
+    /* 모바일에서 패딩 축소 */
+    @media (max-width: 768px) {
+        .block-container {
+            padding-left: 1rem !important;
+            padding-right: 1rem !important;
+            padding-top: 1rem !important;
+        }
+        /* metric 카드 글씨 축소 */
+        [data-testid="stMetricValue"] {
+            font-size: 1.1rem !important;
+        }
+        [data-testid="stMetricLabel"] {
+            font-size: 0.75rem !important;
+        }
+        /* 텍스트 영역 너비 */
+        textarea {
+            font-size: 14px !important;
+        }
+    }
+    /* 전체적으로 최대폭 제한 해제 */
+    .block-container {
+        max-width: 100% !important;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 # ── 비밀번호 잠금 ──
 if not st.session_state.get("authenticated"):
     st.title("🔒 로그인")
