@@ -190,7 +190,6 @@ if st.button("재작성하기", type="primary", use_container_width=True):
                     r["body"],
                 )
 
-                st.markdown("**복사용 텍스트**")
                 # 전체 복사 텍스트 (제목 + 본문 + 해시태그)
                 full_copy = ""
                 if r["new_title"]:
@@ -198,6 +197,21 @@ if st.button("재작성하기", type="primary", use_container_width=True):
                 full_copy += copy_text
                 if r["hashtags"]:
                     full_copy += "\n\n" + r["hashtags"]
+
+                col_label, col_btn = st.columns([3, 1])
+                col_label.markdown("**복사용 텍스트**")
+                copy_key = f"copy_btn_{i}"
+                if col_btn.button("📋 복사하기", key=copy_key):
+                    st.session_state[f"copied_{i}"] = True
+                if st.session_state.get(f"copied_{i}"):
+                    st.components.v1.html(
+                        f"""<script>
+                        navigator.clipboard.writeText({repr(full_copy)});
+                        </script>
+                        <p style="color:green;font-size:14px;">✅ 복사되었습니다!</p>""",
+                        height=30,
+                    )
+                    st.session_state[f"copied_{i}"] = False
 
                 st.text_area(
                     "copy",
