@@ -178,8 +178,35 @@ if st.button("재작성하기", type="primary", use_container_width=True):
                     display_body,
                 )
                 st.markdown(display_body)
-                st.code(r["body"], language=None)
-                st.caption("↑ 복사용 텍스트")
+
+                # 복사용 텍스트: 이미지 링크를 [이미지1], [이미지2]... 로 변환
+                img_counter = [0]
+                def _number_images(m):
+                    img_counter[0] += 1
+                    return f"[이미지{img_counter[0]}]"
+                copy_text = re.sub(
+                    r"\[이미지\] \(유사 이미지 찾기: [^\)]+\)|\[이미지\] \(이미지 검색: [^\)]+\)|\[이미지\]",
+                    _number_images,
+                    r["body"],
+                )
+
+                st.markdown("**복사용 텍스트**")
+                # 전체 복사 텍스트 (제목 + 본문 + 해시태그)
+                full_copy = ""
+                if r["new_title"]:
+                    full_copy += r["new_title"] + "\n\n"
+                full_copy += copy_text
+                if r["hashtags"]:
+                    full_copy += "\n\n" + r["hashtags"]
+
+                st.text_area(
+                    "copy",
+                    value=full_copy,
+                    height=300,
+                    label_visibility="collapsed",
+                    key=f"copy_{i}",
+                )
+
                 if r["hashtags"]:
                     st.markdown(f"**해시태그**")
                     st.code(r["hashtags"], language=None)
