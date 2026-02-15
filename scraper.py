@@ -117,17 +117,20 @@ def _scrape_generic(url: str) -> dict:
     for tag in article.select("script, style, nav, header, footer, aside, iframe"):
         tag.decompose()
 
+    # img 태그를 [이미지] 마커로 치환하고 URL 추출
+    image_urls = []
+    for img in article.select("img"):
+        src = img.get("data-lazy-src") or img.get("data-src") or img.get("src") or ""
+        if src and not src.startswith("data:"):
+            image_urls.append(src)
+            img.replace_with("[이미지]")
+        else:
+            img.decompose()
+
     content = article.get_text("\n", strip=True)
 
     if not content.strip():
         raise ValueError("본문을 추출하지 못했습니다.")
-
-    # 이미지 URL 추출
-    image_urls = []
-    for img in article.select("img"):
-        src = img.get("data-lazy-src") or img.get("src") or ""
-        if src and not src.startswith("data:"):
-            image_urls.append(src)
 
     return {"title": title, "content": content, "image_urls": image_urls, "url": url}
 
